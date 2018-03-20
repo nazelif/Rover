@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<rdf:RDF xmlns="http://usefulinc.com/ns/doap#" xmlns:foaf="http://xmlns.com/foaf/0.1/" xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"><Project><name>pypaths</name>
+<shortdesc>Small, but extensible, pathfinding library</shortdesc>
+<description>PyPaths |buildstatus|
+=====================
+
+.. |buildstatus| image:: https://travis-ci.org/jonathanhood/pypaths.svg?branch=master
+    :target: https://travis-ci.org/jonathanhood/pypaths
+    
+PyPaths is a small library useful for computing paths across simple in-memory graphs. Try it out by installing with pip::
+
+  &gt; pip install pypaths
+
+Or, alternatively, install from source::
+
+  &gt; git clone https://github.com/jonathanhood/pypaths.git
+  &gt; cd pypaths
+  &gt; python setup.py install
+
+For the simplest default case, usage is very simple:
+
+.. sourcecode:: python
+
+  from pypaths import astar
+  
+  finder = astar.pathfinder()
+  
+  print finder( (0,0), (2,2) )
+
+We can also provide some parameters to help the algoriths understand your specific graph:
+
+.. sourcecode:: python
+
+  from pypaths import astar
+  
+  finder = astar.pathfinder( 
+                    distance=my_distance_function,           # Calculate the absolute distance between two nodes
+                    cost=my_cost_function,                   # Calculate the heuristic cost between nodes
+                    neighbors=my_neighbors_function)         # Calculate the list of neighbors for a given node
+  
+  print finder( "MY NODE 1", "MY NODE 3" )</description>
+<maintainer><foaf:Person><foaf:name>Jonathan Hood</foaf:name>
+<foaf:mbox_sha1sum>67e13a9fe845b61e6590acdd21f79813728e648b</foaf:mbox_sha1sum></foaf:Person></maintainer>
+<release><Version><revision>0.1.2</revision></Version></release>
+</Project></rdf:RDF>
