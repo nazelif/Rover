@@ -85,7 +85,7 @@ def test_functions():
 
 def main(argv):
 	start_cell = (1,0) #row 1 col 0
-	goal_cell = (1,3) #row 1 col 3
+	goal_cell = (1,2) #row 1 col 3
 	filename = argv[1] #csv file
 
 	#elevation matrix
@@ -99,12 +99,33 @@ def main(argv):
 	#cost matrix has the same size as the em_matrix
 	cost_matrix = np.empty(em_matrix.shape)
 	cost_matrix.fill(-1)
-	print "\nCOST MATRIX"
-	print DataFrame(cost_matrix)
+	
 
 	#now fill 10s for h/v moves, 14 for diagonal moves
 
-	cost_matrix
+	cost_matrix[goal_cell] = 0
+	goal_row = goal_cell[0]
+	goal_col = goal_cell[1]
+
+	#filing rows to left of goal
+	for x in range(cost_matrix.shape[1]): #shape[1] is num columns
+		#until we hit 0 with goal_col-x-1 = 0 i.e. until goal_col-x = 1
+		if goal_col-x >= 1:
+			cost_matrix[goal_row, goal_col-x-1] = cost_matrix[goal_row, goal_col-x] + 10
+		
+		print "\nCOST MATRIX"
+		print DataFrame(cost_matrix)
+
+	#filling rows to right of goal
+	for x in range(cost_matrix.shape[1]): #shape[1] is num columns
+		#until we hit 0 with goal_col-x+1 = shape[1]-1 i.e. goal_col-x = s[1]-2
+		if goal_col-x < cost_matrix.shape[1]-1:
+			cost_matrix[goal_row, goal_col-x+1] = cost_matrix[goal_row, goal_col-x] + 10
+
+
+		print "\nCOST MATRIX"
+		print DataFrame(cost_matrix)
+
 
 if __name__ == "__main__": 
 	print "RUN as: python elifs_dstar.py em2.csv"
