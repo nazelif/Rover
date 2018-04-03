@@ -30,18 +30,15 @@ class Point(object):
 	def __repr__(self):
 		return "".join(["Point(", str(self.X), ",", str(self.Y), ",", str(self.Z), ")"])
 
-
 def testPoint(x=0,y=0,z=0):
     p1 = Point(3, 4,5)
     p2 = Point(3,0,5)
     return Point.distance(p1,p2)
 
-
 def read_csv_into_matrix(filename): #Ex. elevation_matrix.csv
 	#we read in a csv
 	matrix = list(csv.reader(open(filename)))
 	#we want to make it a point matrix???
-
 
 def slope(p1,p2):
 	try: 
@@ -62,15 +59,12 @@ def cost(p1,p2):
 		slope_factor = descending_slope_factor
 	return cost + math.fabs(slope(p1,p2)) * slope_factor
 
-
 def ask_meba():
 	#for one rotation of the wheel the distance traversed by rover 
 	dist = 2 * math.pi * r #r is the radius of the wheel
 	#encoder measurement (p1) for moving the rover by a distance of dist unites
 	dist1 = 10
 	p1 = traveling_factor * dist1 / dist 
-
-
 
 def fill_cost_matrix(cost_matrix, start_cell, goal_cell):
 	#now fill 10s for h/v moves, 14 for diagonal moves
@@ -104,6 +98,7 @@ def fill_cost_matrix(cost_matrix, start_cell, goal_cell):
 			cost_matrix[goal_row-x-1, goal_col] = cost_matrix[goal_row-x, goal_col] + 10
 		if goal_row-x<1: #until we hit 0 with goal_col-x-1 = 0 i.e. until goal_col-x = 1
 			break
+
 		'''print "\nCOST MATRIX"
 		print DataFrame(cost_matrix)'''
 
@@ -121,14 +116,14 @@ def fill_cost_matrix(cost_matrix, start_cell, goal_cell):
 		if goal_col != cost_matrix.shape[1]-1:
 			cost_matrix[goal_row-1, goal_col+1] = 14
 	
-	if goal_row != cost_matrix.shape[1]-1:
+	#print "\nCOST MATRIX"
+	#print DataFrame(cost_matrix)
+
+	if goal_row != cost_matrix.shape[0]-1:
 		if goal_col != 0 :
 			cost_matrix[goal_row+1, goal_col-1] = 14
-		if goal_col != cost_matrix.shape[0]-1:
+		if goal_col != cost_matrix.shape[1]-1:
 			cost_matrix[goal_row+1, goal_col+1] = 14
-	
-	print "\nCOST MATRIX"
-	print DataFrame(cost_matrix)
 
 	#1ST QUADRANT
 	for row in range(goal_row-1,-1,-1): #every row
@@ -155,16 +150,9 @@ def fill_cost_matrix(cost_matrix, start_cell, goal_cell):
 			if cost_matrix[row][col] == -1:
 				cost_matrix[row,col] = min(cost_matrix[row-1,col-1]+14,min(cost_matrix[row,col-1]+10, cost_matrix[row-1,col]+10)) 
 
-	print "\nCOST MATRIX"
-	print DataFrame(cost_matrix)
-
-
 def update_cost_matrix(cost_matrix, start_cell, goal_cell):
 	goal_row = goal_cell[0]
 	goal_col = goal_cell[1]
-
-
-
 	#start with the goal cell
 	#update the cost with cost + slope*factor
 	#the cost function does this but it takes points as input
@@ -178,6 +166,71 @@ def update_cost_matrix(cost_matrix, start_cell, goal_cell):
 		for col in range(cost_matrix.shape[1]): #every cell in that row
 		'''
 
+def output_path(cost_matrix, start_cell, goal_cell, next_move):
+	#from the start point, trace a path towards the goal cell
+	#follow the min pt
+
+	cur_val = cost_matrix[start_cell]
+	cur_xy = start_cell
+	cost_list = []
+
+	next_move.append(cur_xy) #we start at the start cell
+	cost_list.append(cur_val)
+
+	temp_val = cur_val
+	temp_xy = cur_xy
+
+	while cur_val != 0:
+		if (cur_xy[1] != cost_matrix.shape[1]-1) and (cur_xy[0] != cost_matrix.shape[0]-1): #we are checking lower right diagonal
+			if (cost_matrix[cur_xy[0]+1, cur_xy[1]+1] <= temp_val):
+				temp_val = cost_matrix[cur_xy[0]+1 , cur_xy[1]+1]
+				temp_xy = (cur_xy[0]+1,cur_xy[1]+1)
+
+		if (cur_xy[1] != 0) and (cur_xy[0] != 0): #we are checking upper left diagonal
+			if (cost_matrix[cur_xy[0]-1, cur_xy[1]-1] <= temp_val):
+				temp_val = cost_matrix[cur_xy[0]-1 , cur_xy[1]-1]
+				temp_xy = (cur_xy[0]-1, cur_xy[1]-1)
+
+		if (cur_xy[1] != cost_matrix.shape[1]-1) and (cur_xy[0] != 0): #we are checking upper right diagonal
+			if (cost_matrix[cur_xy[0]-1, cur_xy[1]+1] <= temp_val):
+				temp_val = cost_matrix[cur_xy[0]-1 , cur_xy[1]+1]
+				temp_xy = (cur_xy[0]-1, cur_xy[1]+1)
+
+		if (cur_xy[1] != 0) and (cur_xy[0] != cost_matrix.shape[0]-1): #we are checking lower left diagonal
+			if (cost_matrix[cur_xy[0]+1, cur_xy[1]-1] <= temp_val):
+				temp_val = cost_matrix[cur_xy[0]+1 , cur_xy[1]-1]
+				temp_xy = (cur_xy[0]+1, cur_xy[1]-1)
+
+		if (cur_xy[0] != cost_matrix.shape[0]-1): #we are checking down
+			if (cost_matrix[cur_xy[0]+1, cur_xy[1]] <= temp_val):
+				temp_val = cost_matrix[cur_xy[0]+1 , cur_xy[1]]
+				temp_xy = (cur_xy[0]+1, cur_xy[1])
+
+		if (cur_xy[0] != 0): #we are checking up
+			if (cost_matrix[cur_xy[0]-1, cur_xy[1]] <= temp_val):
+				temp_val = cost_matrix[cur_xy[0]-1 , cur_xy[1]]
+				temp_xy = (cur_xy[0]-1, cur_xy[1])
+
+		if (cur_xy[1] != cost_matrix.shape[1]-1): #we are checking rhs
+			if (cost_matrix[cur_xy[0], cur_xy[1]+1] <= temp_val):
+				temp_val = cost_matrix[cur_xy[0] , cur_xy[1]+1]
+				temp_xy = (cur_xy[0],cur_xy[1]+1)
+
+		if (cur_xy[1] != 0): #we are checking lhs
+			if (cost_matrix[cur_xy[0], cur_xy[1]-1] <= temp_val):
+				temp_val = cost_matrix[cur_xy[0] , cur_xy[1]-1]
+				temp_xy = (cur_xy[0],cur_xy[1]-1)
+		
+		print temp_val
+		print temp_xy
+
+		cur_val = temp_val
+		cur_xy = temp_xy
+		next_move.append(cur_xy) #we start at the start cell
+		cost_list.append(cur_val) #get the path
+
+	print next_move
+	print cost_list
 
 def test_functions():
 	#print "distance = %s"%(testPoint()) 
@@ -194,8 +247,8 @@ def test_functions():
 	'''
 
 def main(argv):
-	start_cell = (0,0) #row 1 col 0
-	goal_cell = (0,0) #row 1 col 3
+	start_cell = (0,4) #row 1 col 0
+	goal_cell = (3,0) #row 1 col 3
 	filename = argv[1] #csv file
 
 	#elevation matrix
@@ -209,10 +262,19 @@ def main(argv):
 
 	fill_cost_matrix(cost_matrix, start_cell, goal_cell)
 
+	print "\nCOST MATRIX"
+	print DataFrame(cost_matrix)
+
 	update_cost_matrix(cost_matrix, start_cell, goal_cell)
+	#doesn't do anything
+
+	next_move = [] #initially empty list
+	output_path(cost_matrix, start_cell, goal_cell, next_move)
+	print next_move
+
 
 
 if __name__ == "__main__": 
-	print "RUN as: python elifs_dstar.py em2.csv"
+	#print "RUN as: python elifs_dstar.py em2.csv"
 	#test_functions()
 	main(sys.argv)
