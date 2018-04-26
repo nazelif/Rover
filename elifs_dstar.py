@@ -64,6 +64,20 @@ def cost(p1,p2):
 		slope_factor = descending_slope_factor
 	return cost + math.fabs(slope(p1,p2)) * slope_factor
 
+def test_functions():
+	#print "distance = %s"%(testPoint())
+	'''
+	p1 = Point(3,1,4)
+	p2 = Point(3,0,5)
+	p3 = Point(2,1,2)
+	print "cost = %s"%(cost(p1,p2))
+	print "cost = %s"%(cost(p1,p3))
+	print "cost = %s"%(cost(p2,p3))
+	print "slope = %s"%(slope(p1,p2))
+	print "slope = %s"%(slope(p1,p3))
+	print "slope = %s"%(slope(p2,p3))
+	'''
+
 def fill_cost1(dem,cost1, start_cell, goal_cell):
 	#now fill 10s for h/v moves, 14 for diagonal moves
 	cost1[goal_cell] = 0
@@ -86,9 +100,6 @@ def fill_cost1(dem,cost1, start_cell, goal_cell):
 		if g_col+x+1 > cost1.shape[1]-1:
 			break
 
-		'''print "\nCOST MATRIX"
-		print DataFrame(cost1)'''
-
 	#filling rows up
 	for x in range(cost1.shape[0]): #shape[0] is num rows
 		if g_row-x >= 1:
@@ -96,8 +107,6 @@ def fill_cost1(dem,cost1, start_cell, goal_cell):
 		if g_row-x<1: #until we hit 0 with g_col-x-1 = 0 i.e. until g_col-x = 1
 			break
 
-		'''print "\nCOST MATRIX"
-		print DataFrame(cost1)'''
 
 	#filling rows down
 	for x in range(cost1.shape[0]): #shape[0] is num rows
@@ -112,9 +121,6 @@ def fill_cost1(dem,cost1, start_cell, goal_cell):
 			cost1[g_row-1, g_col-1] = 14
 		if g_col != cost1.shape[1]-1:
 			cost1[g_row-1, g_col+1] = 14
-
-	#print "\nCOST MATRIX"
-	#print DataFrame(cost1)
 
 	if g_row != cost1.shape[0]-1:
 		if g_col != 0 :
@@ -147,7 +153,7 @@ def fill_cost1(dem,cost1, start_cell, goal_cell):
 			if cost1[row][col] == -1:
 				cost1[row,col] = min(cost1[row-1,col-1]+14,min(cost1[row,col-1]+10, cost1[row-1,col]+10))
 
-def fill_cost2(dem,cost1, cost2, bt, start_cell, goal_cell):
+def fill_cost2(dem,cost1, cost2, start_cell, goal_cell, max_slope):
 
 	explored = [] #keep track of all visited nodes
 	queue = [goal_cell] #keep track of nodes to be checked
@@ -160,17 +166,10 @@ def fill_cost2(dem,cost1, cost2, bt, start_cell, goal_cell):
 			if (node[0] == goal_cell[0] and node[1] == goal_cell[1]):
 				cost2[goal_cell] = 0
 			else:
-				fill_cell(dem, cost2, bt, goal_cell, node[0], node[1])
+				fill_cell(dem, cost2, goal_cell, node[0], node[1], max_slope)
 			neighbors = get_nbrs(cost2, node[0], node[1]) #via the function defined below
 			for neighbor in neighbors:
 				queue.append(neighbor)
-			'''print "**"
-			print node
-			print "**"
-			print queue
-			print "**"
-			print explored'''
-
 
 def get_nbrs(cost2, x, y):
 	result = []
@@ -204,15 +203,8 @@ def get_nbrs(cost2, x, y):
 			result.append([a,b])
 	return result
 
-def fill_cell(dem, cost2, bt, goal_cell, x, y):
+def fill_cell(dem, cost2, goal_cell, x, y, max_slope):
 	#the value at x will be the min of 8 values we will compute with the function
-	''' components to calculate from cost2[a,b] where a,b are max 1 unit away from x,y
-		val_of_prev_cell = cost2[a,b] #this is assumed to be filled before, if not what to do?
-		distance = fabs(cost1[a,b] - cost1[x,y]) #might need to change it with 10 or 14
-		slope = (dem[a,b] - dem[x,y])/ distance
-		if slope < 0 (ascending), use ascending_slope_factor
-		else use descending_slope_factor
-	'''
 
 	temp = sys.maxsize #set this  to be the max val possible, then update as we see smaller ones
 	for i in range(8):
@@ -241,15 +233,17 @@ def fill_cell(dem, cost2, bt, goal_cell, x, y):
 			a = x+1
 			b = y+1
 
-		#check if [a,b] is Out Of Boundries
+		#check if [a,b] is NOT Out Of Boundries
 		if (a >= 0 and b >= 0 and a < cost2.shape[0] and b < cost2.shape[1] and cost2[a,b] != -1):
 			#print "Computations to fill " + str((x,y)) + " using the cell " + str((a,b)) + "\n"
 			temp_val = cost2[a,b] #assuming that this value is the minimum it can be, and it won't change
 			distance = 10 if math.fabs(a+b-x-y) == 1 else 14
 			temp_val += distance
 			slope = (dem[a,b] - dem[x,y])/ distance
+			if (math.fabs(slope) > max_slope):
+				slope *= 1000
 			#print slope
-			temp_val += math.fabs(slope) * ascending_slope_factor if slope < 0 else math.fabs(slope) * descending_slope_factor
+			temp_val += math.fabs(slope) * ascending_slope_factor if slope > 0 else math.fabs(slope) * descending_slope_factor
 			'''print i
 			print cost2[a,b]
 			print distance
@@ -257,12 +251,73 @@ def fill_cell(dem, cost2, bt, goal_cell, x, y):
 			print temp_val'''
 			if temp_val < temp:
 				temp = temp_val
-				bt[x,y] = i
 
-	'''print temp, cost2[x,y]'''
-	cost2[(x,y)] = temp
+	cost2[(x,y)] = temp # or min(temp, cost2[(x,y)])
 
-def output_path(cost1, start_cell, goal_cell, next_move):
+def fill_cost3(dem,cost1, cost2, cost3, start_cell, goal_cell):
+
+	explored = [] #keep track of all visited nodes
+	queue = [goal_cell] #keep track of nodes to be checked
+
+	while queue:
+		node = queue.pop(0)
+		if node not in explored:
+			explored.append(node) #add it to the list of checked nodes
+			print "\nCurrent node is " + str(node)
+
+			if (node[0] == goal_cell[0] and node[1] == goal_cell[1]):
+				cost3[goal_cell] = 0
+
+			else:
+				fill_cell_with_average(dem, cost2, cost3, goal_cell, node[0], node[1])
+
+			''' The BFS traversal below works properly'''
+			neighbors = get_nbrs(cost3, node[0], node[1]) #via the function defined below
+			for neighbor in neighbors:
+				queue.append(neighbor)
+
+def fill_cell_with_average(dem, cost2, cost3, goal_cell, x, y):
+	num = 1
+	temp = cost2[x,y]
+	print "Starting value for filling " + str([x,y]) + " is " + str(temp)
+	for i in range(8):
+		if i == 0:
+			a = x
+			b = y+1
+		elif i == 1:
+			a = x-1
+			b = y+1
+		elif i == 2:
+			a = x-1
+			b = y
+		elif i == 3:
+			a = x-1
+			b = y-1
+		elif i == 4:
+			a = x
+			b = y-1
+		elif i == 5:
+			a = x+1
+			b = y-1
+		elif i == 6:
+			a = x+1
+			b = y
+		else:
+			a = x+1
+			b = y+1
+
+		if (a >= 0 and b >= 0 and a < cost3.shape[0] and b < cost3.shape[1] and cost3[a,b] != -1):
+			print "\nComputations to fill " + str((x,y)) + " using the cell " + str((a,b))
+			print "cost2 " + str(cost2[a,b])
+			print "cost3 " + str(cost3[a,b])
+			temp += cost2[a,b]
+			#temp += cost3[a,b]
+			num += 1
+
+	cost3[(x,y)] = temp/num # or min(temp, cost2[(x,y)])
+	print "Result for " + str((x,y)) + " is " + str(cost3[(x,y)])
+
+def output_path(cost1, start_cell, goal_cell, next_move, max_rotation_angle):
 	#from the start point, trace a path towards the goal cell
 	#follow the min pt
 	cur_val = cost1[start_cell]
@@ -329,19 +384,20 @@ def output_path(cost1, start_cell, goal_cell, next_move):
 		next_move.append(cur_xy) #we start at the start cell
 		cost_list.append(cur_val) #get the path
 
-def test_functions():
-	#print "distance = %s"%(testPoint())
-	'''
-	p1 = Point(3,1,4)
-	p2 = Point(3,0,5)
-	p3 = Point(2,1,2)
-	print "cost = %s"%(cost(p1,p2))
-	print "cost = %s"%(cost(p1,p3))
-	print "cost = %s"%(cost(p2,p3))
-	print "slope = %s"%(slope(p1,p2))
-	print "slope = %s"%(slope(p1,p3))
-	print "slope = %s"%(slope(p2,p3))
-	'''
+def output_path2(cost, start_cell, goal_cell, next_move, max_rotation_angle):
+	tc = [[0 for c in range(cost.shape[1])] for r in range(cost.shape[0])]
+	tc[goal_cell[0]][goal_cell[1]] = cost[goal_cell[0]][goal_cell[1]]
+	m = start_cell[0]
+	n = start_cell[1]
+	for i in range(1, m+1):
+		tc[i][goal_cell[1]] = tc[i-1][goal_cell[1]] + cost[i][goal_cell[1]]
+	for j in range(1,n+1):
+		tc[goal_cell[0]][j] = tc[goal_cell[0]][j-1] + cost[goal_cell[0]][j]
+	for i in range(1, m+1):
+		for j in range(1,n+1):
+			tc[i][j] = min(tc[i-1][j-1], min(tc[i-1][j], tc[i][j-1] + cost[i][j]))
+	print tc
+	return tc[m][n]
 
 def polar(p): # a point w cartesian coordinates
 	return (np.sqrt(p[0]**2 + p[1]**2) , np.arctan2(p[1],p[0]))
@@ -371,23 +427,19 @@ def angle(p1,p2): #(cur,next)
 def dist(p1,p2):
 	return np.sqrt((p2[0] - p1[0])**2 + (p2[1] - p1[1])**2)
 
-def path(size_of_cell, next_move):
+def path(angl, size_of_cell, next_move):
 	#next move is a cost_list
 	path = []
-	prev_angle = 0 #0 radians
-	#print next_move
+	prev_angle = angl #0 radians
 	for i in range(len(next_move)-1):
 		cur = next_move[i]
 		nex = next_move[i+1]
-		cur_angle =  angle(cur, nex)
-#		print cur, nex
+		cur_angle = angle(cur, nex)
 		if prev_angle != cur_angle:
 			# print cur_angle	print prev_angle
 			turn_angle = prev_angle - cur_angle
 			#print turn_angle
-
 			orientation = "R"
-
 			if turn_angle < 0:
 				orientation  = "L"
 
@@ -401,15 +453,21 @@ def path(size_of_cell, next_move):
 			path.append(d * size_of_cell)
 		else:
 			d = dist(cur, nex) #This is how much we will move by
-			path[-1] = path[-1] + d
+			'''print d
+			print path'''
+			if not path:
+				path.append(d)
+			else:
+				path[-1] = path[-1] + d
 	return path #instructions
 
 def main(argv):
-
-	start_cell = (1,0) #row 1 col 0
-	goal_cell = (1,3) #row 1 col 3
-
+	start_cell = (0,0) #row 1 col 0
+	goal_cell = (3,3) #row 1 col 3
+	initial_angle = 90 #Where we are facing...   Currently +y axis direction
 	filename = argv[1] #csv file
+	max_slope = 5 #max slope we want to bear
+	max_rotation_angle = 180
 
 	#elevation matrix
 	dem = np.loadtxt(open(filename, "rb"), delimiter=",")
@@ -420,45 +478,63 @@ def main(argv):
 	cost1 = np.empty(dem.shape)
 	cost1.fill(-1)
 
-	bt = np.empty(dem.shape)
-	bt.fill(-1)
-
 	fill_cost1(dem,cost1, start_cell, goal_cell)
 	print "\nCOST1 MATRIX"
 	print DataFrame(cost1)
+
+	next_move = [] #initially empty list
+	output_path(cost1, start_cell, goal_cell, next_move, max_rotation_angle)
+	print "\nFrom " + str(start_cell) + " to " + str(goal_cell) + " the path is: "
+	print next_move
+
+	''' UNCOMMENT ONCE PATH2 IS IMPLEMENTED
+	next_move = [] #initially empty list
+	tc = output_path2(cost1, start_cell, goal_cell, next_move, max_rotation_angle)
+	print "\nFrom " + str(start_cell) + " to " + str(goal_cell) + " the path is: "
+	print tc #DataFrame(tc)
+	print next_move
+	'''
+
+	list_of_commands = path(initial_angle, size_of_cell, next_move) #returns instructions
+	print "Moving Instructions are "
+	print str(list_of_commands)
+
 
 	#cost matrix has the same size as the dem
 	#cost2 = np.array(cost1) #just copy the first matrix
 	cost2 = np.empty(dem.shape)
 	cost2.fill(-1)
-
-	fill_cost2(dem,cost1,cost2, bt, start_cell, goal_cell)
+	fill_cost2(dem,cost1,cost2, start_cell, goal_cell, max_slope)
 	print "\nCOST2 MATRIX"
 	print DataFrame(cost2)
-	print "\nBT MATRIX"
-	print DataFrame(bt)
-
-	#update_cost1(cost1, start_cell, goal_cell)	#doesn't do anything yet
 
 	next_move = [] #initially empty list
-	output_path(cost1, start_cell, goal_cell, next_move)
+	output_path(cost2, start_cell, goal_cell, next_move, max_rotation_angle)
 	print "\nFrom " + str(start_cell) + " to " + str(goal_cell) + " the path is: "
 	print next_move
 
+	list_of_commands = path(initial_angle, size_of_cell, next_move) #returns instructions
+	print "Moving Instructions are "
+	print str(list_of_commands)
+
+	'''
+	#cost3 = np.array(cost2)
+	cost3 = np.empty(dem.shape)
+	cost3.fill(-1)
+	fill_cost3(dem, cost1, cost2, cost3, start_cell, goal_cell)
+	print "\nCOST3 MATRIX"
+	print DataFrame(cost3)
 
 	next_move = [] #initially empty list
-	output_path(cost2, start_cell, goal_cell, next_move)
+	output_path(cost3, start_cell, goal_cell, next_move, max_rotation_angle)
 	print "\nFrom " + str(start_cell) + " to " + str(goal_cell) + " the path is: "
 	print next_move
 
-
-	list_of_commands = path(size_of_cell, next_move) #returns instructions
+	list_of_commands = path(initial_angle, size_of_cell, next_move) #returns instructions
+	print "Moving Instructions are "
+	print str(list_of_commands)
+	'''
 	#motors(list_of_commands) #DEFINED ON MEBA"s NOTEBOOK
-
-	pstart = Point(start_cell[0], start_cell[1], cost1[start_cell])
-	pgoal = Point(goal_cell[0], goal_cell[1], cost1[goal_cell])
-	#print slope(pstart,pgoal)
-
 
 if __name__ == "__main__":
 	#print "RUN as: python elifs_dstar.py em2.csv"
