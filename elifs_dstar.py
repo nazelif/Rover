@@ -463,14 +463,14 @@ def path(angl, size_of_cell, next_move):
 
 def main(argv):
 	start_cell = (0,0) #row 1 col 0
-	goal_cell = (3,3) #row 1 col 3
+	goal_cell = (29,33) #row 1 col 3
 	initial_angle = 90 #Where we are facing...   Currently +y axis direction
 	filename = argv[1] #csv file
 	max_slope = 5 #max slope we want to bear
 	max_rotation_angle = 180
 
 	#elevation matrix
-	dem = np.loadtxt(open(filename, "rb"), delimiter=",")
+	dem = np.loadtxt(open(filename, "rb"), delimiter=" ")
 	print "\nELEVATION MATRIX"
 	print DataFrame(dem)
 
