@@ -3,12 +3,7 @@ import csv
 import math
 from pandas import DataFrame #to pretty print matrices
 import numpy as np
-
-traveling_factor = 10
-ascending_slope_factor = 20
-descending_slope_factor = 10
-r = 10 #radius of wheel
-size_of_cell = 1 #for now
+import variables as v
 
 # A point class to keep track of coordinates
 class Point(object):
@@ -44,9 +39,9 @@ def slope(p1,p2): #takes a point class
 	try:
 		slope =  ((p2.Z - p1.Z) / math.sqrt( (p2.X-p1.X)**2 + (p2.Y-p1.Y)**2))
 		if slope < 0: #we are ascending, factor = 20
-			slope *= ascending_slope_factor
+			slope *= v.ascending_slope_factor
 		else: #we are descending, descend factor = 10
-			slope *= descending_slope_factor
+			slope *= v.descending_slope_factor
 		return math.fabs(slope)
 	except ZeroDivisionError:
 		print "Same point, Different elevation, check points"
@@ -56,12 +51,12 @@ def slope(p1,p2): #takes a point class
 
 def cost(p1,p2):
 	units = Point.distance(p1,p2)
-	cost = traveling_factor * units
+	cost = v.traveling_factor * units
 	if (p1.getX != p2.getX) ^ (p1.getY != p2.getY): #diagonally moving when x and y are both  different values
 		cost *= math.sqrt(2)
-	slope_factor = ascending_slope_factor
+	slope_factor = v.ascending_slope_factor
 	if slope(p1,p2) < 0:
-		slope_factor = descending_slope_factor
+		slope_factor = v.descending_slope_factor
 	return cost + math.fabs(slope(p1,p2)) * slope_factor
 
 def test_functions():
@@ -161,6 +156,7 @@ def fill_cost2(dem,cost1, cost2, start_cell, goal_cell, max_slope):
 	#Loop until q is empty
 	while queue:
 		node = queue.pop(0)
+		print node
 		if node not in explored:
 			explored.append(node) #add it to the list of checked nodes
 			if (node[0] == goal_cell[0] and node[1] == goal_cell[1]):
@@ -241,9 +237,9 @@ def fill_cell(dem, cost2, goal_cell, x, y, max_slope):
 			temp_val += distance
 			slope = (dem[a,b] - dem[x,y])/ distance
 			if (math.fabs(slope) > max_slope):
-				slope *= 1000
+				slope = slope * 1000
 			#print slope
-			temp_val += math.fabs(slope) * ascending_slope_factor if slope > 0 else math.fabs(slope) * descending_slope_factor
+			temp_val += math.fabs(slope) * v.ascending_slope_factor if slope > 0 else math.fabs(slope) * v.descending_slope_factor
 			'''print i
 			print cost2[a,b]
 			print distance
@@ -330,6 +326,8 @@ def output_path(cost1, start_cell, goal_cell, next_move, max_rotation_angle):
 	temp_val = cur_val
 	temp_xy = cur_xy
 
+	slope_so_far = 0
+
 	while cur_val != 0:
 		if (cur_xy[1] != cost1.shape[1]-1) and (cur_xy[0] != cost1.shape[0]-1): #we are checking lower right diagonal
 			if (cost1[cur_xy[0]+1, cur_xy[1]+1] <= temp_val):
@@ -384,6 +382,7 @@ def output_path(cost1, start_cell, goal_cell, next_move, max_rotation_angle):
 		next_move.append(cur_xy) #we start at the start cell
 		cost_list.append(cur_val) #get the path
 
+
 def output_path2(cost, start_cell, goal_cell, next_move, max_rotation_angle):
 	tc = [[0 for c in range(cost.shape[1])] for r in range(cost.shape[0])]
 	tc[goal_cell[0]][goal_cell[1]] = cost[goal_cell[0]][goal_cell[1]]
@@ -396,7 +395,7 @@ def output_path2(cost, start_cell, goal_cell, next_move, max_rotation_angle):
 	for i in range(1, m+1):
 		for j in range(1,n+1):
 			tc[i][j] = min(tc[i-1][j-1], min(tc[i-1][j], tc[i][j-1] + cost[i][j]))
-	print tc
+	#print tc
 	return tc[m][n]
 
 def polar(p): # a point w cartesian coordinates
@@ -448,96 +447,136 @@ def path(angl, size_of_cell, next_move):
 
 			turn_angle = math.fabs(turn_angle)
 			prev_angle = cur_angle # this is what we
-			path.append((turn_angle, orientation))
+			path.append((turn_angle,orientation))
 			d = dist(cur, nex) #This is how much we will move by
 			path.append(d * size_of_cell)
 		else:
-			d = dist(cur, nex) #This is how much we will move by
-			'''print d
-			print path'''
+			d = dist(cur,nex) #This is how much we will move by
 			if not path:
 				path.append(d)
 			else:
 				path[-1] = path[-1] + d
 	return path #instructions
 
+def smoothen_path(moving_instructions, max_angle):
+	smooth_path = []
+	for i, command in enumerate(moving_instructions):
+		#if we are starting by moving forward, then just add this to list
+		if (i==0 and type(command) is not tuple):
+			smooth_path.append(command)
+		if type(command) is tuple: #rotation case
+			angle = command[0]
+			rotation = command[1]
+			if (angle <= max_angle): #we will NOT do slicing
+				smooth_path.append(command)
+			else:
+				#Do slicing
+				#Access the number to move forward by
+				forward = moving_instructions[i+1] #this i+1 shouldn't be a problem since the last thing is always a float to move by
+				num_times_to_loop = angle/max_angle
+				for i in range(int(num_times_to_loop)):
+					smooth_path.append((max_angle, rotation))
+					smooth_path.append(forward * float(max_angle)/angle)
+				#do the remaining angle and movement
+				remaining_angle = angle - (int(num_times_to_loop) * max_angle)
+				remaining_distance = forward - (forward * float(max_angle)/angle) * int(num_times_to_loop)
+				if (remaining_angle > 0):
+					smooth_path.append((remaining_angle, rotation))
+					smooth_path.append(remaining_distance)
+
+	#write
+	f = open(v.instructions_file,"w+")
+	for i, instruction in enumerate(smooth_path):
+		f.write(str(instruction) + " ")
+		# if (i != len(smooth_path)-1):
+			# f.write("\n")
+	f.close()
+	return smooth_path
+
+def fill_path_file(n, next_move):
+	if (n==1):
+		f = open("path1.txt","w+")
+	else:
+		f = open("path2.txt","w+")
+	x_coordinates = [move[0] for move in next_move]
+	y_coordinates = [move[1] for move in next_move]
+	f.write(str(x_coordinates))
+	f.write("\n")
+	f.write(str(y_coordinates))
+	f.close()
+	print "works"
+
 def main(argv):
-	start_cell = (0,0) #row 1 col 0
-	goal_cell = (29,33) #row 1 col 3
-	initial_angle = 90 #Where we are facing...   Currently +y axis direction
 	filename = argv[1] #csv file
-	max_slope = 5 #max slope we want to bear
-	max_rotation_angle = 180
 
 	#elevation matrix
 	dem = np.loadtxt(open(filename, "rb"), delimiter=" ")
-	print "\nELEVATION MATRIX"
-	print DataFrame(dem)
+	print dem.shape
+
 
 	#cost matrix has the same size as the dem
 	cost1 = np.empty(dem.shape)
 	cost1.fill(-1)
 
-	fill_cost1(dem,cost1, start_cell, goal_cell)
-	print "\nCOST1 MATRIX"
-	print DataFrame(cost1)
+	#fill_cost1(dem,cost1, v.start_cell, v.goal_cell)
+	#fill_cost1(dem,cost1, (0,0), (dem.shape[0]-1, dem.shape[1]-1))
+	fill_cost1(dem,cost1, (0,350), (350,0))
 
 	next_move = [] #initially empty list
-	output_path(cost1, start_cell, goal_cell, next_move, max_rotation_angle)
-	print "\nFrom " + str(start_cell) + " to " + str(goal_cell) + " the path is: "
-	print next_move
+	#output_path(cost1, v.start_cell, v.goal_cell, next_move, v.max_rotation_angle)
+	#output_path(cost1, (0,0), (dem.shape[0]-1, dem.shape[1]-1), next_move, v.max_rotation_angle)
+	output_path(cost1, (0,350), (350,0), next_move, v.max_rotation_angle)
 
-	''' UNCOMMENT ONCE PATH2 IS IMPLEMENTED
-	next_move = [] #initially empty list
-	tc = output_path2(cost1, start_cell, goal_cell, next_move, max_rotation_angle)
-	print "\nFrom " + str(start_cell) + " to " + str(goal_cell) + " the path is: "
-	print tc #DataFrame(tc)
-	print next_move
-	'''
 
-	list_of_commands = path(initial_angle, size_of_cell, next_move) #returns instructions
-	print "Moving Instructions are "
-	print str(list_of_commands)
+	list_of_commands = path(v.initial_angle, v.size_of_cell, next_move) #returns instructions
 
+	print_path_1 = False
+
+	if print_path_1:
+		print "\nELEVATION MATRIX"
+		print DataFrame(dem)
+		print "\nCOST1 MATRIX"
+		print DataFrame(cost1)
+		print "\nFrom " + str(v.start_cell) + " to " + str(v.goal_cell) + " the path is: "
+		print next_move
+		print "Moving Instructions are "
+		print str(list_of_commands)
+
+	fill_path_file(1, next_move)
 
 	#cost matrix has the same size as the dem
 	#cost2 = np.array(cost1) #just copy the first matrix
 	cost2 = np.empty(dem.shape)
 	cost2.fill(-1)
-	fill_cost2(dem,cost1,cost2, start_cell, goal_cell, max_slope)
-	print "\nCOST2 MATRIX"
-	print DataFrame(cost2)
+	# fill_cost2(dem,cost1,cost2, (0,0), (dem.shape[0]-1, dem.shape[1]-1), v.max_slope)
+	fill_cost2(dem,cost1,cost2, (0,350), (350,0), v.max_slope)
 
 	next_move = [] #initially empty list
-	output_path(cost2, start_cell, goal_cell, next_move, max_rotation_angle)
-	print "\nFrom " + str(start_cell) + " to " + str(goal_cell) + " the path is: "
-	print next_move
+	# output_path(cost2, (0,0), (dem.shape[0]-1, dem.shape[1]-1), next_move, v.max_rotation_angle)
+	print "all good"
+	output_path(cost2, (0,350), (350,0), next_move, v.max_rotation_angle)
+	list_of_commands = path(v.initial_angle, v.size_of_cell, next_move) #returns instructions
+	smooth_path = smoothen_path(list_of_commands, v.max_angle)
 
-	list_of_commands = path(initial_angle, size_of_cell, next_move) #returns instructions
-	print "Moving Instructions are "
-	print str(list_of_commands)
+	print_path_2 = False
 
-	'''
-	#cost3 = np.array(cost2)
-	cost3 = np.empty(dem.shape)
-	cost3.fill(-1)
-	fill_cost3(dem, cost1, cost2, cost3, start_cell, goal_cell)
-	print "\nCOST3 MATRIX"
-	print DataFrame(cost3)
+	if print_path_2:
+		print "\nCOST2 MATRIX"
+		print DataFrame(cost2)
+		print "\nFrom " + str(v.start_cell) + " to " + str(v.goal_cell) + " the path is: "
+		print next_move
+		print "Moving Instructions are "
+		print str(list_of_commands)
+		print "\nFrom " + str(v.start_cell) + " to " + str(v.goal_cell) + " the SMOOTHENED path is: "
+		print smooth_path
 
-	next_move = [] #initially empty list
-	output_path(cost3, start_cell, goal_cell, next_move, max_rotation_angle)
-	print "\nFrom " + str(start_cell) + " to " + str(goal_cell) + " the path is: "
-	print next_move
+	fill_path_file(2, next_move)
 
-	list_of_commands = path(initial_angle, size_of_cell, next_move) #returns instructions
-	print "Moving Instructions are "
-	print str(list_of_commands)
-	'''
 	#motors(list_of_commands) #DEFINED ON MEBA"s NOTEBOOK
 
 if __name__ == "__main__":
 	#print "RUN as: python elifs_dstar.py em2.csv"
 	#print "Having trouble? See Elif for packages to install to run it"
 	#test_functions()
+	print "in d_star"
 	main(sys.argv)
